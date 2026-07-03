@@ -1,0 +1,55 @@
+version: "3.8"
+
+# Spustenie:  docker compose up -d
+# Zastavenie: docker compose down          (dáta ostanú vo volume)
+# Úplné zmazanie dát: docker compose down -v
+#
+# MySQL:  localhost:3307   databaza "ais-like", user "ais-like-user" / "iceIceBaby"
+#         (host port 3307, lebo 3306 je na mojom PC uz obsadeny inym MySQL)
+# Mongo:  localhost:27017  (bez autentifikacie pre lokalny vyvoj)
+# Mongo Express (web UI na obzeranie Mongo dat): http://localhost:8081
+
+services:
+  mysql:
+    image: mysql:8
+    container_name: mysql-server
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: my-secret-pw
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      # vsetko z tohto priecinka sa pri PRVOM starte kontajnera vykona ako SQL/shell skripty
+      # (poradie podla nazvu suboru - preto 01-, 02-...)
+      - ./sql/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-pmy-secret-pw"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mongo:
+    image: mongo:7
+    container_name: mongo-server
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  mongo-express:
+    image: mongo-express:1.0.2
+    container_name: mongo-express
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongo
+      ME_CONFIG_BASICAUTH: "false"
+
+volumes:
+  mysql-data:
+  mongo-data:
